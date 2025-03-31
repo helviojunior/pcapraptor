@@ -6,6 +6,19 @@ Available modules:
 
 * [x] Auto adjust PCAP package times using an NTP package from reference
 
+## Motivation
+
+For me, it's very common to run into an issue when capturing network traffic using tools like the [Hak5 Packet Squirrel](https://shop.hak5.org/products/packet-squirrel-mark-ii): the packet timestamps are not accurate. This usually happens because the device (the sniffer) hasn't synced its clock before starting the capture. As a result, I end up having to manually analyze and calculate the correct time for each packet—which is a pain.
+
+Wireshark does offer a "Time Shift" feature to adjust timestamps, but the adjustment isn't persistent. Every time you close and reopen the PCAP file, you have to recalculate the time shift from scratch.
+
+To solve this problem, I created PCAPRaptor. In most cases, the devices being captured (like computers, printers, etc.) use NTP to synchronize their clocks. PCAPRaptor takes advantage of this by scanning the PCAP file for NTP traffic and using that information to correct the timestamps across the entire capture.
+
+Of course, I know NTP traffic isn’t always present, so I’m planning to add support for parsing other protocols that can reveal accurate date and time info—like HTTP responses and other packets that carry timestamp metadata. I'm also working on a feature to sync timestamps across two separate PCAP files.
+
+In addition, I plan to add other useful functions, such as merging multiple PCAP files.
+
+*Note:* If you know of any other network protocols that can be used to extract real date and time from a PCAP, feel free to let me know!
 
 ## Some amazing features
 

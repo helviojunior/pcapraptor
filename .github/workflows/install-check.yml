@@ -1,0 +1,94 @@
+name: Go Install Check
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+        - .gitignore
+        - README.md
+        - INSTALL.md
+        - USE_CASES.md
+        - LICENSE
+        - TODO
+        - Dockerfile
+
+  pull_request:
+    branches: [main]
+    paths-ignore:
+        - .gitignore
+        - README.md
+        - INSTALL.md
+        - USE_CASES.md
+        - LICENSE
+        - TODO
+        - Dockerfile
+
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: ["386", amd64, arm64]
+        exclude:
+          - goarch: "386"
+            goos: darwin
+          - goarch: arm64
+            goos: windows
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.23"
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            ca-certificates jq curl
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then sudo apt install -y gcc-multilib gcc-mingw-w64; fi
+      
+      - name: Get OS and arch info
+        id: vars
+        run: |
+          VER=$(curl -s https://api.github.com/repos/helviojunior/pcapraptor/releases/latest | jq -r '.tag_name' | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' || echo '0.0.0')
+          GITHASH=$(git rev-parse --short HEAD)
+          BUILDENV=$(go version | cut -d' ' -f 3,4 | sed 's/ /_/g')
+          BUILDTIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          LDFLAGS="-s -w \
+            -X=github.com/helviojunior/pcapraptor/internal/version.Version=$VER \
+            -X=github.com/helviojunior/pcapraptor/internal/version.GitHash=$GITHASH \
+            -X=github.com/helviojunior/pcapraptor/internal/version.GoBuildEnv=$BUILDENV \
+            -X=github.com/helviojunior/pcapraptor/internal/version.GoBuildTime=$BUILDTIME"
+
+          EXT=$(if [[ "${{ matrix.goos }}" == "windows" ]]; then echo ".exe"; fi)
+          FILENAME="pcapraptor-test-v${VER}-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}"
+
+          echo "LDFLAGS=$LDFLAGS" >> $GITHUB_OUTPUT
+          echo "VER=$VER" >> $GITHUB_OUTPUT
+          echo "FILENAME=$FILENAME" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Build
+        run: |
+          mkdir ./build
+          env GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o ./build/${{ steps.vars.outputs.FILENAME }} .
+
+      - name: Upload Go build results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.vars.outputs.FILENAME }}
+          path: ./build/${{ steps.vars.outputs.FILENAME }}
+          retention-days: 3

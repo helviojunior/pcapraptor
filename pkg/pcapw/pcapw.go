@@ -20,7 +20,7 @@ import (
     //"io"
     "os"
 
-    "github.com/dreadl0ck/gopcap"
+    "github.com/helviojunior/pcapraptor/pkg/gopcap"
 )
 
 /////////////////////////////

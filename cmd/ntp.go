@@ -29,7 +29,7 @@ import (
     "github.com/helviojunior/pcapraptor/internal/tools"
     "github.com/helviojunior/pcapraptor/pkg/log"
 
-    "github.com/dreadl0ck/gopcap"
+    "github.com/helviojunior/pcapraptor/pkg/gopcap"
     "github.com/spf13/cobra"
 )
 

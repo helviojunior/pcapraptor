@@ -20,7 +20,7 @@ import (
     "time"
     "path/filepath"
 
-    "github.com/dreadl0ck/gopcap"
+    "github.com/helviojunior/pcapraptor/pkg/gopcap"
 )
 
 /////////////////////////////

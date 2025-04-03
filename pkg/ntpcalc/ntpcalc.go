@@ -21,7 +21,7 @@ import (
 
     //"github.com/helviojunior/pcapraptor/pkg/log"
 
-    "github.com/dreadl0ck/gopcap"
+    "github.com/helviojunior/pcapraptor/pkg/gopcap"
     "github.com/google/gopacket"
     "github.com/google/gopacket/layers"
 )
@@ -99,7 +99,7 @@ func GetFileDelta(pcapFile string) (*time.Duration, error) {
         packet := gopacket.NewPacket(data, layers.LayerTypeEthernet, gopacket.NoCopy)
         if ntpLayer := packet.Layer(layers.LayerTypeNTP); ntpLayer != nil {
             ntp := ntpLayer.(*layers.NTP)
-            if ntp.Mode == 3 { //Request
+            if ntp.Mode == 3 || ntp.Mode == 1 { //Request, Symetric Active
                 ntpList = append(ntpList, NewNTPData(h.TsSec, h.TsUsec, uint64(ntp.TransmitTimestamp)))
             }else if ntp.Mode == 4 { // Response from server
                 for _, nd := range ntpList {

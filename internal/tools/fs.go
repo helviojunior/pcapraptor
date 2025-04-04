@@ -358,7 +358,7 @@ func ResolveFullPath(file_path string) (string, error) {
        return "", err
     }
 
-	if fc == "." {
+	if fc == "." && file_path[0:3] != "../" {
 		file_path = strings.Replace(file_path, ".", currentPath, 1)
 		if !IsValid(file_path) {
 			return "", errors.New("File path '"+ file_path + "' is not a valid path") 

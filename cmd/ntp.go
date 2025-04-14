@@ -28,8 +28,8 @@ import (
     "github.com/helviojunior/pcapraptor/internal/ascii"
     "github.com/helviojunior/pcapraptor/internal/tools"
     "github.com/helviojunior/pcapraptor/pkg/log"
-
     "github.com/helviojunior/pcapraptor/pkg/gopcap"
+    resolver "github.com/helviojunior/gopathresolver"
     "github.com/spf13/cobra"
 )
 
@@ -95,7 +95,7 @@ A -pcap must be specified.
         if pcapFiles.fromFile == "" {
             return errors.New("from file not set")
         }
-        pcapFiles.fromFile, err = tools.ResolveFullPath(pcapFiles.fromFile)
+        pcapFiles.fromFile, err = resolver.ResolveFullPath(pcapFiles.fromFile)
         if err != nil {
             return err
         }
@@ -108,7 +108,7 @@ A -pcap must be specified.
 
         if pcapFiles.toFile != "" {
                 
-            pcapFiles.toFile, err = tools.ResolveFullPath(pcapFiles.toFile)
+            pcapFiles.toFile, err = resolver.ResolveFullPath(pcapFiles.toFile)
             if err != nil {
                 return err
             }
@@ -122,7 +122,7 @@ A -pcap must be specified.
                 return errors.New(fmt.Sprintf("unsupported to (%s) file type", pcapFiles.toExt))
             }
 
-            if isv, err := tools.IsValidAndNotExists(pcapFiles.toFile); !isv {
+            if isv, err := resolver.IsValidAndNotExists(pcapFiles.toFile); !isv {
                 return err
             }
         }
@@ -177,7 +177,7 @@ A -pcap must be specified.
             n.TimeDiff = *diff
             pcapFiles.toFile = n.GetNameFromTime()
 
-            pcapFiles.toFile, err = tools.ResolveFullPath(pcapFiles.toFile)
+            pcapFiles.toFile, err = resolver.ResolveFullPath(pcapFiles.toFile)
             if err != nil {
                 log.Error("Error setting file name", "err", err)
                 os.Exit(2)
@@ -194,7 +194,7 @@ A -pcap must be specified.
                 os.Exit(2)
             }
 
-            if isv, err := tools.IsValidAndNotExists(pcapFiles.toFile); !isv {
+            if isv, err := resolver.IsValidAndNotExists(pcapFiles.toFile); !isv {
                 log.Error("Error setting file name", "err", err)
                 os.Exit(2)
             }

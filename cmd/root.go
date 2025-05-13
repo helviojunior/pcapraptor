@@ -42,7 +42,7 @@ type LoggingOptions struct {
 var startTime time.Time
 var rootCmd = &cobra.Command{
 	Use:   "pcapraptor",
-	Short: "pcapraptor is a modular Intel/Leaks parser",
+	Short: "pcapraptor is a modular PCAP file worker",
 	Long:  ascii.Logo(),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 

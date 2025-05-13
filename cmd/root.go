@@ -31,6 +31,37 @@ var (
 	opts = &LoggingOptions{}
 )
 
+var pcapFiles = struct {
+    fromFile string
+    toFile   string
+
+    fromExt string
+    toExt   string
+}{}
+
+type ConvStatus struct {
+    Packets int
+    Label string
+    ShowCounter bool
+    Spin string
+}
+
+func (st *ConvStatus) Print() { 
+    st.Spin = ascii.GetNextSpinner(st.Spin)
+
+    lbl := st.Label
+    if st.ShowCounter {
+        lbl += fmt.Sprintf(" adjusted %d packets", st.Packets)
+    }
+
+    fmt.Fprintf(os.Stderr, "%s\n %s %s\r\033[A", 
+        "                                                                        ",
+        ascii.ColoredSpin(st.Spin), 
+        lbl)
+} 
+
+var pcapExtensions = []string{".pcap"}
+
 // Logging is log related options
 type LoggingOptions struct {
     // Debug display debug level logging
@@ -120,4 +151,5 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&opts.Debug, "debug-log", "D", false, "Enable debug logging")
 	rootCmd.PersistentFlags().BoolVarP(&opts.Silence, "quiet", "q", false, "Silence (almost all) logging")
 	
+    rootCmd.PersistentFlags().StringVarP(&pcapFiles.fromFile, "pcap", "i", "", "PCAP source file")
 }

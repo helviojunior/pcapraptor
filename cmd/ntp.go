@@ -33,37 +33,6 @@ import (
     "github.com/spf13/cobra"
 )
 
-var pcapFiles = struct {
-    fromFile string
-    toFile   string
-
-    fromExt string
-    toExt   string
-}{}
-
-type ConvStatus struct {
-    Packets int
-    Label string
-    ShowCounter bool
-    Spin string
-}
-
-func (st *ConvStatus) Print() { 
-    st.Spin = ascii.GetNextSpinner(st.Spin)
-
-    lbl := st.Label
-    if st.ShowCounter {
-        lbl += fmt.Sprintf(" adjusted %d packets", st.Packets)
-    }
-
-    fmt.Fprintf(os.Stderr, "%s\n %s %s\r\033[A", 
-        "                                                                        ",
-        ascii.ColoredSpin(st.Spin), 
-        lbl)
-} 
-
-var pcapExtensions = []string{".pcap"}
-
 var autoNtpCmd = &cobra.Command{
     Use:   "ntp",
     Short: "Look for NTP request/response into PCAP file and calculate package time shifiting",
@@ -282,7 +251,6 @@ A -pcap must be specified.
 func init() {
     rootCmd.AddCommand(autoNtpCmd)
 
-    autoNtpCmd.Flags().StringVarP(&pcapFiles.fromFile, "pcap", "i", "", "PCAP source file")
     autoNtpCmd.Flags().StringVarP(&pcapFiles.toFile, "output-file", "o", "", "The file to write adjusted PCAP data to")
 
     //autoNtpCmd.PersistentFlags().StringVar(&rptFilter, "filter", "", "Comma-separated terms to filter results")

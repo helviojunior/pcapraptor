@@ -51,7 +51,7 @@ func (st *ConvStatus) Print() {
 
     lbl := st.Label
     if st.ShowCounter {
-        lbl += fmt.Sprintf(" adjusted %d packets", st.Packets)
+        lbl += fmt.Sprintf(" checking %d packets", st.Packets)
     }
 
     fmt.Fprintf(os.Stderr, "%s\n %s %s\r\033[A", 

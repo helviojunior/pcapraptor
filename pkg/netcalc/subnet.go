@@ -121,7 +121,7 @@ func GetSubnetsFromPacket(packet gopacket.Packet) []SubnetData {
     //Try to parse if is an ARP packet
     if arpLayer := packet.Layer(layers.LayerTypeARP); arpLayer != nil {
         arp := arpLayer.(*layers.ARP)
-        if arp.Protocol == 0x0800 && arp.Operation == layers.ARPReply { // IPv4
+        if arp.Protocol == 0x0800 { // IPv4    && arp.Operation == layers.ARPReply {
             addSlice(&subnetList, newSubnetFromIP(net.IP{ arp.SourceProtAddress[0], arp.SourceProtAddress[1], arp.SourceProtAddress[2], arp.SourceProtAddress[3] }))
             addSlice(&subnetList, newSubnetFromIP(net.IP{ arp.DstProtAddress[0], arp.DstProtAddress[1], arp.DstProtAddress[2], arp.DstProtAddress[3] }))
         }

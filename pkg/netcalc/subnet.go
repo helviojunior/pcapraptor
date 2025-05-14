@@ -18,7 +18,7 @@ import (
 
     "github.com/google/gopacket"
     "github.com/google/gopacket/layers"
-    //"github.com/helviojunior/pcapraptor/pkg/log"
+    "github.com/helviojunior/pcapraptor/pkg/log"
 
 )
 
@@ -58,12 +58,9 @@ var deniedSubnets = []net.IPNet{
     }
 
 type SubnetData struct {
-    SrcNet             string
-    SrcMask            int16
-    SrcIsPrivate       bool
-    DstNet             string
-    DstMask            int16
-    DstIsPrivate       bool
+    Net             string
+    Mask            int
+    IsPrivate       bool
 }
 
 func IsPrivateIP(ip net.IP) bool {
@@ -75,72 +72,119 @@ func IsPrivateIP(ip net.IP) bool {
     return false
 }
 
-func GetSubnetsFromPacket(packet gopacket.Packet) *SubnetData {
+func newSubnetFromIP(ip net.IP) SubnetData {
+    return SubnetData{
+        Net: ip.Mask(net.CIDRMask(24, 32)).String(),
+        Mask: 24,
+        IsPrivate: IsPrivateIP(ip),
+    }
 
-    sIP := net.IP{ 0, 0, 0, 0 }
-    dIP := net.IP{ 0, 0, 0, 0 }
+}
+
+func newSubnetFromIPMask(ip net.IP, cidr int) SubnetData {
+    return SubnetData{
+        Net: ip.Mask(net.CIDRMask(cidr, 32)).String(),
+        Mask: cidr,
+        IsPrivate: IsPrivateIP(ip),
+    }
+}
+
+func addSlice(subnetList *[]SubnetData, data SubnetData) {
+    if data.Net == "" || data.Net == "0.0.0.0" {
+        return
+    }
+
+    ip := net.ParseIP(data.Net)
+    if ip == nil {
+        return
+    }
+
+    if isDeniedIP(ip) {
+        return
+    }
+
+    for _, subnet := range *subnetList {
+        if subnet.Net == data.Net && subnet.Mask == data.Mask {
+            return
+        }
+    }
+
+    *subnetList = append(*subnetList, data)
+}
+
+func GetSubnetsFromPacket(packet gopacket.Packet) []SubnetData {
+
+    subnetList := []SubnetData{}
+
+    defaultMask := net.CIDRMask(24, 32)
 
     //Try to parse if is an ARP packet
     if arpLayer := packet.Layer(layers.LayerTypeARP); arpLayer != nil {
         arp := arpLayer.(*layers.ARP)
-        if arp.Protocol == 0x0800 { // IPv4
-
-            sIP = net.IP{ arp.SourceProtAddress[0], arp.SourceProtAddress[1], arp.SourceProtAddress[2], arp.SourceProtAddress[3] }
-            dIP = net.IP{ arp.DstProtAddress[0], arp.DstProtAddress[1], arp.DstProtAddress[2], arp.DstProtAddress[3] }
-
+        if arp.Protocol == 0x0800 && arp.Operation == layers.ARPReply { // IPv4
+            addSlice(&subnetList, newSubnetFromIP(net.IP{ arp.SourceProtAddress[0], arp.SourceProtAddress[1], arp.SourceProtAddress[2], arp.SourceProtAddress[3] }))
+            addSlice(&subnetList, newSubnetFromIP(net.IP{ arp.DstProtAddress[0], arp.DstProtAddress[1], arp.DstProtAddress[2], arp.DstProtAddress[3] }))
         }
     }
 
     if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
         ipv4 := ipLayer.(*layers.IPv4)  
-        sIP = net.IP{ ipv4.SrcIP[0], ipv4.SrcIP[1], ipv4.SrcIP[2], ipv4.SrcIP[3] }
-        dIP = net.IP{ ipv4.DstIP[0], ipv4.DstIP[1], ipv4.DstIP[2], ipv4.DstIP[3] }
+        
+        //TCP
+        if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
+            tcp := tcpLayer.(*layers.TCP)
+            if tcp.ACK && !(tcp.FIN || tcp.RST) {
+                addSlice(&subnetList, newSubnetFromIP(net.IP{ ipv4.SrcIP[0], ipv4.SrcIP[1], ipv4.SrcIP[2], ipv4.SrcIP[3] }))
+                addSlice(&subnetList, newSubnetFromIP(net.IP{ ipv4.DstIP[0], ipv4.DstIP[1], ipv4.DstIP[2], ipv4.DstIP[3] }))
+            }
+        }
+
+        //DHCP
+        if dhcpLayer := packet.Layer(layers.LayerTypeDHCPv4); dhcpLayer != nil {
+            dhcp := dhcpLayer.(*layers.DHCPv4)
+            if dhcp.Operation == layers.DHCPOpReply {
+                isOffer := false
+                for _, o := range dhcp.Options {
+                    if o.Type == layers.DHCPOptMessageType && (layers.DHCPMsgType(o.Data[0]) == layers.DHCPMsgTypeOffer || layers.DHCPMsgType(o.Data[0]) == layers.DHCPMsgTypeAck) {
+                        isOffer = true
+                    }
+                }
+                
+                if isOffer {
+                    router := dhcp.YourClientIP
+                    for _, o := range dhcp.Options {
+                        if o.Type == layers.DHCPOptSubnetMask {
+                            defaultMask = net.IPv4Mask(o.Data[0], o.Data[1], o.Data[2], o.Data[3])
+                        }
+                    }
+                    ones, _ := defaultMask.Size()
+
+                    addSlice(&subnetList, newSubnetFromIPMask(dhcp.YourClientIP, ones))
+
+                    for _, o := range dhcp.Options {
+                        if o.Type == layers.DHCPOptRouter {
+                            router = net.IP{ o.Data[0], o.Data[1], o.Data[2], o.Data[3] }
+                            addSlice(&subnetList, newSubnetFromIPMask(router, ones))
+                        }else if o.Type  == layers.DHCPOptNameServer || o.Type == layers.DHCPOptDNS {
+                            offset := 0
+                            size := len(o.Data)
+                            for offset <= size - 4 {
+                                addSlice(&subnetList, newSubnetFromIP(net.IP{ o.Data[offset], o.Data[offset + 1], o.Data[offset + 2], o.Data[offset + 3] }))
+                                offset += 4
+                            }
+                            
+                        }
+                    }
+
+                    log.Debug("DHCP Offer/ACK", "IP", dhcp.YourClientIP, "Mask", net.IP(defaultMask).String(), "Router", router)
+                }
+            }
+        }
+
+        //TODO: Implement NBNS, LLMNR and MDNS
     }
 
-    if isDeniedIP(sIP) && isDeniedIP(dIP) {
-        return nil
-    }
-
-    defaultMask := net.CIDRMask(24, 32)
-
-    dt := &SubnetData{
-        SrcNet: sIP.Mask(defaultMask).String(),
-        SrcMask: 24,
-        SrcIsPrivate: IsPrivateIP(sIP),
-        DstNet: dIP.Mask(defaultMask).String(),
-        DstMask: 24,
-        DstIsPrivate: IsPrivateIP(dIP),
-    }
-
-    if dt.SrcNet == "0.0.0.0" {
-        dt.SrcNet = dt.DstNet
-        dt.SrcMask = dt.DstMask
-        dt.SrcIsPrivate = dt.DstIsPrivate
-        dt.DstNet = ""
-        dt.DstMask = 0
-        dt.DstIsPrivate = false
-    }
-
-    if isDeniedIP(sIP) {
-        dt.SrcNet = dt.DstNet
-        dt.SrcMask = dt.DstMask
-        dt.SrcIsPrivate = dt.DstIsPrivate
-        dt.DstNet = ""
-        dt.DstMask = 0
-        dt.DstIsPrivate = false
-    }
-
-    if dt.DstNet == "0.0.0.0" || isDeniedIP(dIP) {
-        dt.DstNet = ""
-        dt.DstMask = 0
-        dt.DstIsPrivate = false
-    }
-
-    if dt.SrcNet != "" && dt.DstNet != "" {
-        return dt
-    }
-
-    return nil;
+    return subnetList;
 }
 
 func isDeniedIP(ip net.IP) bool {

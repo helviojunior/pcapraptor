@@ -181,22 +181,13 @@ A -pcap must be specified.
                 status.Packets++
 
                 packet := gopacket.NewPacket(data, layers.LayerTypeEthernet, gopacket.NoCopy)
-                subnet := netcalc.GetSubnetsFromPacket(packet)
-                if subnet != nil {
-                    if subnet.SrcNet != "" && (!privateOnly || subnet.SrcIsPrivate) {
-                        hasNoPrivate = !subnet.SrcIsPrivate || hasNoPrivate
-                        n := fmt.Sprintf("%s/%d", subnet.SrcNet, subnet.SrcMask)
+                for _, subnet := range netcalc.GetSubnetsFromPacket(packet) {
+                    if subnet.Net != "" && (!privateOnly || subnet.IsPrivate) {
+                        hasNoPrivate = !subnet.IsPrivate || hasNoPrivate
+                        n := fmt.Sprintf("%s/%d", subnet.Net, subnet.Mask)
                         if !tools.SliceHasStr(subnetList, n) {
                             subnetList = append(subnetList, n)
-                            log.Info("Subnet found", "subnet", subnet.SrcNet, "netmask", subnet.SrcMask)
-                        }
-                    }
-                    if subnet.DstNet != "" && subnet.DstNet != subnet.SrcNet && (!privateOnly || subnet.DstIsPrivate)  {
-                        hasNoPrivate = !subnet.DstIsPrivate || hasNoPrivate
-                        n := fmt.Sprintf("%s/%d", subnet.DstNet, subnet.DstMask)
-                        if !tools.SliceHasStr(subnetList, n) {
-                            subnetList = append(subnetList, n)
-                            log.Info("Subnet found", "subnet", subnet.DstNet, "netmask", subnet.DstMask)
+                            log.Info("Subnet found", "subnet", subnet.Net, "netmask", subnet.Mask)
                         }
                     }
 

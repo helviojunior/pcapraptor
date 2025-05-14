@@ -213,7 +213,7 @@ A -pcap must be specified.
         )
         ascii.ClearLine()
 
-        log.Warn("Calucating supernets...")
+        log.Warn("Calculating supernets...")
         netGroups := netcalc.GroupSubnets(subnetList)
         for i, group := range netGroups {
             supnet := netcalc.CalculateSupernet(group)

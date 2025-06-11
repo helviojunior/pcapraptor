@@ -89,7 +89,7 @@ func newSubnetFromIPMask(ip net.IP, cidr int) SubnetData {
     }
 }
 
-func addSlice(subnetList *[]SubnetData, data SubnetData) {
+func AddSlice(subnetList *[]SubnetData, data SubnetData) {
     if data.Net == "" || data.Net == "0.0.0.0" {
         return
     }
@@ -122,8 +122,8 @@ func GetSubnetsFromPacket(packet gopacket.Packet) []SubnetData {
     if arpLayer := packet.Layer(layers.LayerTypeARP); arpLayer != nil {
         arp := arpLayer.(*layers.ARP)
         if arp.Protocol == 0x0800 { // IPv4    && arp.Operation == layers.ARPReply {
-            addSlice(&subnetList, newSubnetFromIP(net.IP{ arp.SourceProtAddress[0], arp.SourceProtAddress[1], arp.SourceProtAddress[2], arp.SourceProtAddress[3] }))
-            addSlice(&subnetList, newSubnetFromIP(net.IP{ arp.DstProtAddress[0], arp.DstProtAddress[1], arp.DstProtAddress[2], arp.DstProtAddress[3] }))
+            AddSlice(&subnetList, newSubnetFromIP(net.IP{ arp.SourceProtAddress[0], arp.SourceProtAddress[1], arp.SourceProtAddress[2], arp.SourceProtAddress[3] }))
+            AddSlice(&subnetList, newSubnetFromIP(net.IP{ arp.DstProtAddress[0], arp.DstProtAddress[1], arp.DstProtAddress[2], arp.DstProtAddress[3] }))
         }
     }
 
@@ -134,8 +134,8 @@ func GetSubnetsFromPacket(packet gopacket.Packet) []SubnetData {
         if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
             tcp := tcpLayer.(*layers.TCP)
             if tcp.ACK && !(tcp.FIN || tcp.RST) {
-                addSlice(&subnetList, newSubnetFromIP(net.IP{ ipv4.SrcIP[0], ipv4.SrcIP[1], ipv4.SrcIP[2], ipv4.SrcIP[3] }))
-                addSlice(&subnetList, newSubnetFromIP(net.IP{ ipv4.DstIP[0], ipv4.DstIP[1], ipv4.DstIP[2], ipv4.DstIP[3] }))
+                AddSlice(&subnetList, newSubnetFromIP(net.IP{ ipv4.SrcIP[0], ipv4.SrcIP[1], ipv4.SrcIP[2], ipv4.SrcIP[3] }))
+                AddSlice(&subnetList, newSubnetFromIP(net.IP{ ipv4.DstIP[0], ipv4.DstIP[1], ipv4.DstIP[2], ipv4.DstIP[3] }))
             }
         }
 
@@ -159,17 +159,17 @@ func GetSubnetsFromPacket(packet gopacket.Packet) []SubnetData {
                     }
                     ones, _ := defaultMask.Size()
 
-                    addSlice(&subnetList, newSubnetFromIPMask(dhcp.YourClientIP, ones))
+                    AddSlice(&subnetList, newSubnetFromIPMask(dhcp.YourClientIP, ones))
 
                     for _, o := range dhcp.Options {
                         if o.Type == layers.DHCPOptRouter {
                             router = net.IP{ o.Data[0], o.Data[1], o.Data[2], o.Data[3] }
-                            addSlice(&subnetList, newSubnetFromIPMask(router, ones))
+                            AddSlice(&subnetList, newSubnetFromIPMask(router, ones))
                         }else if o.Type  == layers.DHCPOptNameServer || o.Type == layers.DHCPOptDNS {
                             offset := 0
                             size := len(o.Data)
                             for offset <= size - 4 {
-                                addSlice(&subnetList, newSubnetFromIP(net.IP{ o.Data[offset], o.Data[offset + 1], o.Data[offset + 2], o.Data[offset + 3] }))
+                                AddSlice(&subnetList, newSubnetFromIP(net.IP{ o.Data[offset], o.Data[offset + 1], o.Data[offset + 2], o.Data[offset + 3] }))
                                 offset += 4
                             }
                             

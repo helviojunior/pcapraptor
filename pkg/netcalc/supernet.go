@@ -51,6 +51,10 @@ func CalculateSupernet(ips []net.IPNet) *net.IPNet {
         return nil
     }
 
+    if len(ips) == 1 {
+        return &net.IPNet{IP: ips[0].IP, Mask: ips[0].Mask}
+    }
+    
     min := ipToUint32(ips[0].IP)
     max := ipToUint32(ips[0].IP)
 

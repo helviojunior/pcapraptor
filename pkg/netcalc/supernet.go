@@ -19,15 +19,38 @@ import (
     "fmt"
     "net"
     "sort"
+    "errors"
 )
 
 // 2x /24s = 512
 var _DISTANCE = uint32(512)
+var _CIDR = uint32(8)
 
 type ipNetGroup []net.IPNet
 
 func ipToUint32(ip net.IP) uint32 {
     return binary.BigEndian.Uint32(ip.To4())
+}
+
+func maskToUint32(mask net.IPMask) uint32 {
+
+    return binary.BigEndian.Uint32(mask)
+
+    ones, bits := mask.Size()
+    if bits != 32 {
+        return uint32(24)
+    }
+
+    return uint32(ones)
+}
+
+func maskToCidrUint32(mask net.IPMask) uint32 {
+    ones, bits := mask.Size()
+    if bits != 32 {
+        return _CIDR
+    }
+
+    return uint32(ones)
 }
 
 func uint32ToIP(n uint32) net.IP {
@@ -91,11 +114,16 @@ func getPrivateRange(ip net.IP) string {
     return "other"
 }
 
-func SetDistance(d uint32) {
-    _DISTANCE = d
+func SetLowerCIDR(cidr uint32) error {
+    if cidr < 8 || cidr > 32 {
+        return errors.New("cidr must be a valid CIDR value between 8 and 32")
+    }
+    _CIDR = cidr
+    _DISTANCE = (1 << (32 - _CIDR)) - 1
     if _DISTANCE < 16 {
         _DISTANCE = 16
     }
+    return nil
 }
 
 func GroupSubnets(subnets []string) [][]net.IPNet {
@@ -133,7 +161,15 @@ func GroupSubnets(subnets []string) [][]net.IPNet {
                 result = append(result, temp)
                 temp = []net.IPNet{subnet}
             } else {
-                temp = append(temp, subnet)
+                tmp2 := append(temp, subnet)
+                sp := CalculateSupernet(tmp2)
+                m1 := maskToCidrUint32(sp.Mask)
+                if m1 < _CIDR {
+                    result = append(result, temp)
+                    temp = []net.IPNet{subnet}
+                } else {
+                    temp = append(temp, subnet)
+                }
             }
         }
         if len(temp) > 0 {

@@ -15,6 +15,7 @@ package netcalc
 
 import (
     "net"
+    "fmt"
 
     "github.com/google/gopacket"
     "github.com/google/gopacket/layers"
@@ -61,6 +62,15 @@ type SubnetData struct {
     Net             string
     Mask            int
     IsPrivate       bool
+}
+
+
+func (subnet SubnetData) To4() net.IP {
+    _, ipnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", subnet.Net, subnet.Mask))
+    if err != nil {
+        return nil
+    }
+    return ipnet.IP.To4()
 }
 
 func IsPrivateIP(ip net.IP) bool {

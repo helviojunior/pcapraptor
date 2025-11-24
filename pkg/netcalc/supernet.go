@@ -21,6 +21,8 @@ import (
     "sort"
 )
 
+// 2x /24s = 512
+var _DISTANCE = uint32(512)
 
 type ipNetGroup []net.IPNet
 
@@ -89,6 +91,13 @@ func getPrivateRange(ip net.IP) string {
     return "other"
 }
 
+func SetDistance(d uint32) {
+    _DISTANCE = d
+    if _DISTANCE < 16 {
+        _DISTANCE = 16
+    }
+}
+
 func GroupSubnets(subnets []string) [][]net.IPNet {
     grouped := map[string][]net.IPNet{}
 
@@ -103,7 +112,7 @@ func GroupSubnets(subnets []string) [][]net.IPNet {
         grouped[r] = append(grouped[r], *ipnet)
     }
 
-    // Quebra por distância > 2 /24
+    // Quebra por distância
     var result [][]net.IPNet
     for _, group := range grouped {
         sort.Slice(group, func(i, j int) bool {
@@ -120,7 +129,7 @@ func GroupSubnets(subnets []string) [][]net.IPNet {
             curr := ipToUint32(subnet.IP)
 
             // distância entre /24s > 2
-            if (curr - prev) > 512 {
+            if (curr - prev) > _DISTANCE {
                 result = append(result, temp)
                 temp = []net.IPNet{subnet}
             } else {
